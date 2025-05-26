@@ -1,46 +1,54 @@
-let t = 0; // Time variable for Perlin noise, used to create smooth motion
+let mic, amplitude;
+let t = 0;
+let micStarted = false;
+let startButton;
 
 function setup() {
-  // Create a responsive canvas and attach it to the banner container
   let canvas = createCanvas(windowWidth, 400);
   canvas.parent('banner-container');
-
-  // Set background color once at the start
   background(0);
-
-  // Use HSB color mode for rainbow-style color transitions
   colorMode(HSB, 255);
-
-  // No outlines for shapes
   noStroke();
+
+  startButton = createButton('Click to Start Mic');
+  startButton.position(width / 2 - 60, height / 2 - 20);
+  startButton.mousePressed(startMic);
+}
+
+function startMic() {
+  mic = new p5.AudioIn();
+  mic.start(() => {
+    amplitude = new p5.Amplitude();
+    amplitude.setInput(mic);
+    micStarted = true;
+    startButton.hide();
+  }, err => {
+    console.error("Microphone access denied or error:", err);
+  });
 }
 
 function draw() {
-  // Draw a semi-transparent black background to create a fading trail effect
-  background(0, 10); 
+  background(0, 10);
+  if (!micStarted) return;
 
-  // Only generate shapes while mouse is pressed
-  if (mouseIsPressed) {
-    let size = random(20, 100); // Random size for each circle
-    let hue = frameCount % 255; // Cycle hue over time (0–255)
+  let level = amplitude.getLevel();
+  let boosted = pow(level * 3, 2);
+  let shapeCount = int(map(boosted, 0, 1, 1, 5));
+  let tSpeed = map(boosted, 0, 1, 0.002, 0.05);
 
-    // Add Perlin noise to the mouse position for more organic movement
-    let x = mouseX + noise(t) * 50 - 25;
-    let y = mouseY + noise(t + 1000) * 50 - 25;
+  for (let i = 0; i < shapeCount; i++) {
+    let size = random(20, 100);
+    let hue = frameCount % 255;
+    let x = noise(t + i) * width;
+    let y = noise(t + 1000 + i) * height;
 
-    // Prepare to apply transformations like rotation
     push();
-    translate(x, y); // Move origin to (x, y)
-    rotate(radians(frameCount % 360)); // Rotate based on frame count for subtle motion
-
-    // Set fill color with current hue and some transparency
+    translate(x, y);
+    rotate(radians(frameCount % 360));
     fill(hue, 200, 255, 200);
-
-    // Draw the circle at the transformed origin
     ellipse(0, 0, size);
-
-    pop(); // Restore original drawing settings
-
-    t += 0.01; // Increment time for Perlin noise movement
+    pop();
   }
+
+  t += tSpeed;
 }
